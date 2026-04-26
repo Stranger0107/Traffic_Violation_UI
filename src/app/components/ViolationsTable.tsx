@@ -1,35 +1,40 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
-
-interface Violation {
-  id: string;
-  plateNumber: string;
-  violation: string;
-  fine: number;
-  timestamp: string;
-  status: 'pending_review' | 'issued' | 'contested' | 'paid' | 'invalidated';
-  location: string;
-}
-
-const mockViolations: Violation[] = [
-  { id: 'CH-2024-001', plateNumber: 'DL-3C-AB-1234', violation: 'Overspeeding (85 km/h in 60 zone)', fine: 2000, timestamp: '2026-04-26 14:23', status: 'pending_review', location: 'MG Road, Zone 3' },
-  { id: 'CH-2024-002', plateNumber: 'MH-12-CD-5678', violation: 'Red Light Violation', fine: 1000, timestamp: '2026-04-26 13:45', status: 'paid', location: 'Connaught Place' },
-  { id: 'CH-2024-003', plateNumber: 'KA-01-EF-9012', violation: 'No Helmet', fine: 500, timestamp: '2026-04-26 12:30', status: 'contested', location: 'Indiranagar Signal' },
-  { id: 'CH-2024-004', plateNumber: 'TN-22-GH-3456', violation: 'Wrong Lane Driving', fine: 1500, timestamp: '2026-04-26 11:15', status: 'issued', location: 'Anna Salai' },
-  { id: 'CH-2024-005', plateNumber: 'AP-09-IJ-7890', violation: 'Parking Violation', fine: 200, timestamp: '2026-04-26 10:00', status: 'paid', location: 'Commercial Street' },
-  { id: 'CH-2024-006', plateNumber: 'RJ-14-KL-2345', violation: 'Mobile Phone Usage', fine: 1000, timestamp: '2026-04-26 09:20', status: 'issued', location: 'Jaipur Highway' },
-  { id: 'CH-2024-007', plateNumber: 'GJ-01-MN-6789', violation: 'Overspeeding (95 km/h in 70 zone)', fine: 2500, timestamp: '2026-04-25 18:45', status: 'invalidated', location: 'SG Highway' },
-  { id: 'CH-2024-008', plateNumber: 'UP-32-OP-3456', violation: 'Triple Riding', fine: 1000, timestamp: '2026-04-25 17:30', status: 'pending_review', location: 'Gomti Nagar' },
-];
+import { getAdminViolations, type ViolationRecord } from '../api';
 
 export function ViolationsTable() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [violations, setViolations] = useState<ViolationRecord[]>([]);
   const itemsPerPage = 6;
 
-  const filteredViolations = mockViolations.filter((v) =>
+  useEffect(() => {
+    let active = true;
+
+    async function loadViolations() {
+      setIsLoading(true);
+      try {
+        const data = await getAdminViolations();
+        if (active) {
+          setViolations(data);
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadViolations();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredViolations = violations.filter((v) =>
     v.plateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     v.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     v.violation.toLowerCase().includes(searchTerm.toLowerCase())
@@ -113,7 +118,7 @@ export function ViolationsTable() {
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground max-w-xs">
                         <div>{violation.violation}</div>
-                        <div className="text-xs text-muted-foreground mt-1">{violation.location}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{violation.ownerName}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-foreground">
                         ₹{violation.fine.toLocaleString()}

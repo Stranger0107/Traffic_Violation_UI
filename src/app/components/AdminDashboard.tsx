@@ -1,25 +1,71 @@
+import { useEffect, useState } from 'react';
 import { FileText, AlertCircle, DollarSign, TrendingUp } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { getAdminGrievances, getAdminViolations, type GrievanceRecord, type ViolationRecord } from '../api';
 
-const chartData = [
-  { month: 'Jan', violations: 245 },
-  { month: 'Feb', violations: 312 },
-  { month: 'Mar', violations: 289 },
-  { month: 'Apr', violations: 401 },
-  { month: 'May', violations: 378 },
-  { month: 'Jun', violations: 432 },
-];
-
-const recentActivity = [
-  { id: 1, type: 'violation', plate: 'DL-3C-AB-1234', action: 'New violation detected', time: '2 min ago' },
-  { id: 2, type: 'payment', plate: 'MH-12-CD-5678', action: 'Fine payment received', time: '15 min ago' },
-  { id: 3, type: 'grievance', plate: 'KA-01-EF-9012', action: 'Grievance submitted', time: '1 hour ago' },
-  { id: 4, type: 'approval', plate: 'TN-22-GH-3456', action: 'Challan approved by officer', time: '2 hours ago' },
-  { id: 5, type: 'violation', plate: 'AP-09-IJ-7890', action: 'New violation detected', time: '3 hours ago' },
-];
+type ActivityItem = {
+  id: string;
+  plate: string;
+  action: string;
+  time: string;
+};
 
 export function AdminDashboard() {
+  const [violations, setViolations] = useState<ViolationRecord[]>([]);
+  const [grievances, setGrievances] = useState<GrievanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      try {
+        const [violationData, grievanceData] = await Promise.all([getAdminViolations(), getAdminGrievances()]);
+        if (!active) {
+          return;
+        }
+        setViolations(violationData);
+        setGrievances(grievanceData);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const chartData = Object.entries(
+    violations.reduce<Record<string, number>>((accumulator, violation) => {
+      const month = new Date(violation.timestamp).toLocaleString('en-US', { month: 'short' });
+      accumulator[month] = (accumulator[month] ?? 0) + 1;
+      return accumulator;
+    }, {})
+  ).slice(-6).map(([month, count]) => ({ month, violations: count }));
+
+  const recentActivity: ActivityItem[] = [...violations.slice(0, 3).map((violation) => ({
+    id: `violation-${violation.id}`,
+    plate: violation.plateNumber,
+    action: `Violation detected: ${violation.violation}`,
+    time: new Date(violation.timestamp).toLocaleString(),
+  })), ...grievances.slice(0, 2).map((grievance) => ({
+    id: `grievance-${grievance.id}`,
+    plate: grievance.plateNumber,
+    action: `Grievance ${grievance.status}`,
+    time: grievance.createdAt ? new Date(grievance.createdAt).toLocaleString() : 'Recently',
+  }))].slice(0, 5);
+
+  const totalViolations = violations.length;
+  const openGrievances = grievances.filter((grievance) => grievance.status === 'open').length;
+  const revenueCollected = violations.filter((violation) => violation.status === 'paid').reduce((total, violation) => total + violation.fine, 0);
+  const processingRate = totalViolations === 0 ? 0 : Math.round((violations.filter((violation) => violation.status === 'issued').length / totalViolations) * 1000) / 10;
+
   return (
     <div className="flex-1 overflow-auto bg-background">
       <div className="p-8">
@@ -29,10 +75,10 @@ export function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard title="Total Violations" value="2,057" change={12.5} icon={FileText} iconColor="bg-blue-500" />
-          <StatCard title="Open Grievances" value="23" change={-8.3} icon={AlertCircle} iconColor="bg-purple-500" />
-          <StatCard title="Revenue Collected" value="₹4.2L" change={18.7} icon={DollarSign} iconColor="bg-green-500" />
-          <StatCard title="Processing Rate" value="94.2%" change={3.1} icon={TrendingUp} iconColor="bg-amber-500" />
+          <StatCard title="Total Violations" value={loading ? '...' : totalViolations.toLocaleString()} change={12.5} icon={FileText} iconColor="bg-blue-500" />
+          <StatCard title="Open Grievances" value={loading ? '...' : openGrievances.toString()} change={-8.3} icon={AlertCircle} iconColor="bg-purple-500" />
+          <StatCard title="Revenue Collected" value={loading ? '...' : `₹${revenueCollected.toLocaleString()}`} change={18.7} icon={DollarSign} iconColor="bg-green-500" />
+          <StatCard title="Processing Rate" value={loading ? '...' : `${processingRate}%`} change={3.1} icon={TrendingUp} iconColor="bg-amber-500" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -81,6 +127,9 @@ export function AdminDashboard() {
                   </div>
                 </div>
               ))}
+              {!loading && recentActivity.length === 0 && (
+                <p className="text-sm text-muted-foreground">No recent activity yet</p>
+              )}
             </div>
           </div>
         </div>

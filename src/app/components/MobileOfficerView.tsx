@@ -1,63 +1,57 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Upload, Check, X, Camera, Clock } from 'lucide-react';
-import { StatusBadge } from './StatusBadge';
-
-interface PendingChallan {
-  id: string;
-  plateNumber: string;
-  violation: string;
-  fine: number;
-  snapshot: string;
-  timestamp: string;
-  confidence: number;
-}
-
-const mockPendingChallans: PendingChallan[] = [
-  {
-    id: 'AI-001',
-    plateNumber: 'DL-3C-AB-1234',
-    violation: 'Overspeeding (85 km/h)',
-    fine: 2000,
-    snapshot: 'Frame #1234',
-    timestamp: '2026-04-26 14:23',
-    confidence: 94.5,
-  },
-  {
-    id: 'AI-002',
-    plateNumber: 'MH-12-CD-5678',
-    violation: 'Red Light Violation',
-    fine: 1000,
-    snapshot: 'Frame #1567',
-    timestamp: '2026-04-26 14:18',
-    confidence: 98.2,
-  },
-  {
-    id: 'AI-003',
-    plateNumber: 'KA-01-EF-9012',
-    violation: 'No Helmet',
-    fine: 500,
-    snapshot: 'Frame #1890',
-    timestamp: '2026-04-26 14:10',
-    confidence: 87.3,
-  },
-];
+import { getPendingChallans, reviewChallan, uploadTrafficVideo, type ViolationRecord } from '../api';
 
 export function MobileOfficerView() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'upload' | 'pending'>('pending');
+  const [pendingChallans, setPendingChallans] = useState<ViolationRecord[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadPending() {
+      const data = await getPendingChallans();
+      if (active) {
+        setPendingChallans(data);
+      }
+    }
+
+    loadPending();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleUpload = async () => {
-    setIsProcessing(true);
-    for (let i = 0; i <= 100; i += 10) {
-      setUploadProgress(i);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+    if (!selectedFile) {
+      return;
     }
-    setTimeout(() => {
+
+    setIsProcessing(true);
+    try {
+      for (let i = 0; i <= 100; i += 10) {
+        setUploadProgress(i);
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+
+      await uploadTrafficVideo(selectedFile);
+      const refreshed = await getPendingChallans();
+      setPendingChallans(refreshed);
+      setActiveTab('pending');
+      setSelectedFile(null);
+    } finally {
       setIsProcessing(false);
       setUploadProgress(0);
-      setActiveTab('pending');
-    }, 500);
+    }
+  };
+
+  const handleReview = async (challanId: string, action: 'approve' | 'reject') => {
+    await reviewChallan(Number(challanId), action);
+    setPendingChallans(await getPendingChallans());
   };
 
   return (
@@ -76,7 +70,7 @@ export function MobileOfficerView() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Pending Review ({mockPendingChallans.length})
+          Pending Review ({pendingChallans.length})
         </button>
         <button
           onClick={() => setActiveTab('upload')}
@@ -96,9 +90,15 @@ export function MobileOfficerView() {
             <Camera className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-semibold text-foreground mb-2">Upload Traffic Footage</h3>
             <p className="text-sm text-muted-foreground mb-4">MP4 format, max 500MB</p>
+            <input
+              type="file"
+              accept="video/*"
+              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+              className="mb-4 block w-full text-sm text-muted-foreground"
+            />
             <button
               onClick={handleUpload}
-              disabled={isProcessing}
+              disabled={isProcessing || !selectedFile}
               className="px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
             >
               <Upload className="w-4 h-4" />
@@ -129,12 +129,12 @@ export function MobileOfficerView() {
         </div>
       ) : (
         <div className="p-4 space-y-4">
-          {mockPendingChallans.map((challan) => (
+          {pendingChallans.map((challan) => (
             <div key={challan.id} className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
               <div className="bg-muted h-40 flex items-center justify-center border-b border-border">
                 <div className="text-center text-muted-foreground">
                   <Camera className="w-12 h-12 mx-auto mb-2" />
-                  <p className="text-sm">{challan.snapshot}</p>
+                  <p className="text-sm">Pending review from backend DB</p>
                 </div>
               </div>
 
@@ -146,7 +146,7 @@ export function MobileOfficerView() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-semibold text-foreground">₹{challan.fine}</div>
-                    <div className="text-xs text-green-600 font-medium">{challan.confidence}% confidence</div>
+                    <div className="text-xs text-green-600 font-medium">{challan.status}</div>
                   </div>
                 </div>
 
@@ -156,11 +156,17 @@ export function MobileOfficerView() {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                  <button
+                    onClick={() => handleReview(challan.id, 'approve')}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                  >
                     <Check className="w-4 h-4" />
                     Approve
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                  <button
+                    onClick={() => handleReview(challan.id, 'reject')}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  >
                     <X className="w-4 h-4" />
                     Reject
                   </button>
@@ -169,7 +175,7 @@ export function MobileOfficerView() {
             </div>
           ))}
 
-          {mockPendingChallans.length === 0 && (
+          {pendingChallans.length === 0 && (
             <div className="bg-card border border-border rounded-lg p-12 text-center">
               <Check className="w-16 h-16 text-green-500 mx-auto mb-4" />
               <h3 className="font-semibold text-foreground mb-2">All caught up!</h3>

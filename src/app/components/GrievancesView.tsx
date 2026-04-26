@@ -1,70 +1,54 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Check, AlertCircle } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
-
-interface Grievance {
-  id: string;
-  challanId: string;
-  plateNumber: string;
-  violation: string;
-  fine: number;
-  citizenReason: string;
-  submittedAt: string;
-  status: 'open' | 'approved' | 'rejected';
-  adminRemarks?: string;
-  evidenceUrl?: string;
-}
-
-const mockGrievances: Grievance[] = [
-  {
-    id: 'GR-001',
-    challanId: 'CH-2024-003',
-    plateNumber: 'KA-01-EF-9012',
-    violation: 'No Helmet',
-    fine: 500,
-    citizenReason: 'I was wearing a helmet. The AI detection system might have failed to recognize it due to lighting conditions. I have my helmet purchase receipt as proof.',
-    submittedAt: '2026-04-26 12:45',
-    status: 'open',
-    evidenceUrl: '/evidence/ch-2024-003.jpg',
-  },
-  {
-    id: 'GR-002',
-    challanId: 'CH-2024-007',
-    plateNumber: 'GJ-01-MN-6789',
-    violation: 'Overspeeding (95 km/h in 70 zone)',
-    fine: 2500,
-    citizenReason: 'The speed limit sign was not clearly visible at that location. Additionally, I was overtaking a slow-moving vehicle safely.',
-    submittedAt: '2026-04-25 19:00',
-    status: 'approved',
-    adminRemarks: 'Reviewed CCTV footage. Speed limit sign was indeed obscured by tree branches. Challan invalidated.',
-  },
-  {
-    id: 'GR-003',
-    challanId: 'CH-2024-011',
-    plateNumber: 'DL-5B-PQ-4567',
-    violation: 'Red Light Violation',
-    fine: 1000,
-    citizenReason: 'The traffic light was malfunctioning and showing conflicting signals.',
-    submittedAt: '2026-04-24 16:30',
-    status: 'rejected',
-    adminRemarks: 'Traffic control logs show no malfunction reported at that time. Video evidence clearly shows red signal. Challan upheld.',
-  },
-];
+import { getAdminGrievances, resolveGrievance, type GrievanceRecord } from '../api';
 
 export function GrievancesView() {
-  const [selectedGrievance, setSelectedGrievance] = useState<Grievance | null>(null);
+  const [selectedGrievance, setSelectedGrievance] = useState<GrievanceRecord | null>(null);
   const [adminRemarks, setAdminRemarks] = useState('');
   const [isResolving, setIsResolving] = useState(false);
+  const [grievances, setGrievances] = useState<GrievanceRecord[]>([]);
 
-  const openGrievances = mockGrievances.filter((g) => g.status === 'open');
+  useEffect(() => {
+    let active = true;
+
+    async function loadGrievances() {
+      const data = await getAdminGrievances();
+      if (active) {
+        setGrievances(data);
+      }
+    }
+
+    loadGrievances();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const openGrievances = grievances.filter((g) => g.status === 'open');
 
   const handleResolve = async (action: 'approve' | 'reject') => {
     setIsResolving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    alert(`Grievance ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
-    setIsResolving(false);
-    setSelectedGrievance(null);
-    setAdminRemarks('');
+    try {
+      if (!selectedGrievance) {
+        return;
+      }
+
+      await resolveGrievance({
+        grievance_id: Number(selectedGrievance.id),
+        action,
+        admin_remark: adminRemarks,
+      });
+
+      const updated = await getAdminGrievances();
+      setGrievances(updated);
+      alert(`Grievance ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+      setSelectedGrievance(null);
+      setAdminRemarks('');
+    } finally {
+      setIsResolving(false);
+    }
   };
 
   return (
@@ -91,10 +75,10 @@ export function GrievancesView() {
                 >
                   <div className="flex items-start justify-between mb-2">
                     <span className="text-sm font-medium text-foreground">{grievance.id}</span>
-                    <span className="text-xs text-muted-foreground">{grievance.submittedAt.split(' ')[0]}</span>
+                    <span className="text-xs text-muted-foreground">{grievance.createdAt.split('T')[0]}</span>
                   </div>
                   <div className="text-sm font-semibold text-primary mb-1">{grievance.plateNumber}</div>
-                  <div className="text-xs text-muted-foreground">{grievance.violation}</div>
+                  <div className="text-xs text-muted-foreground">{grievance.challan?.violation}</div>
                 </button>
               ))}
               {openGrievances.length === 0 && (
@@ -126,7 +110,7 @@ export function GrievancesView() {
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Challan ID</p>
-                      <p className="text-sm font-medium text-foreground">{selectedGrievance.challanId}</p>
+                      <p className="text-sm font-medium text-foreground">{selectedGrievance.violationId}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Plate Number</p>
@@ -134,11 +118,11 @@ export function GrievancesView() {
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Violation</p>
-                      <p className="text-sm text-foreground">{selectedGrievance.violation}</p>
+                      <p className="text-sm text-foreground">{selectedGrievance.challan?.violation}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Fine Amount</p>
-                      <p className="text-sm font-semibold text-foreground">₹{selectedGrievance.fine}</p>
+                      <p className="text-sm font-semibold text-foreground">₹{selectedGrievance.challan?.fine ?? 0}</p>
                     </div>
                   </div>
                 </div>
@@ -147,7 +131,7 @@ export function GrievancesView() {
                   <div>
                     <h3 className="text-sm font-medium text-foreground mb-2">Citizen's Reason for Dispute</h3>
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                      <p className="text-sm text-foreground">{selectedGrievance.citizenReason}</p>
+                      <p className="text-sm text-foreground">{selectedGrievance.reason}</p>
                     </div>
                   </div>
 
@@ -156,7 +140,7 @@ export function GrievancesView() {
                     <div className="bg-muted rounded-lg h-64 flex items-center justify-center border border-border">
                       <div className="text-center text-muted-foreground">
                         <p className="text-sm">High-res violation snapshot</p>
-                        <p className="text-xs mt-1">{selectedGrievance.evidenceUrl}</p>
+                        <p className="text-xs mt-1">{selectedGrievance.challan?.timestamp}</p>
                       </div>
                     </div>
                   </div>

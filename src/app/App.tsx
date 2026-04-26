@@ -1,15 +1,48 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ViolationsTable } from './components/ViolationsTable';
 import { GrievancesView } from './components/GrievancesView';
 import { MobileOfficerView } from './components/MobileOfficerView';
 import { MobileCitizenView } from './components/MobileCitizenView';
-import { Smartphone } from 'lucide-react';
+import { LoginView } from './components/LoginView';
+import { RegisterView } from './components/RegisterView';
+import { clearToken, getToken, getUserRole, UserRole } from './api';
 
 export default function App() {
+  const [authState, setAuthState] = useState<'login' | 'register' | 'authenticated'>(() =>
+    getToken() ? 'authenticated' : 'login'
+  );
   const [activeView, setActiveView] = useState<'dashboard' | 'violations' | 'grievances' | 'settings'>('dashboard');
-  const [viewMode, setViewMode] = useState<'admin' | 'officer' | 'citizen'>('admin');
+  const [viewMode, setViewMode] = useState<UserRole>(() => getUserRole() ?? 'admin');
+
+  useEffect(() => {
+    if (getToken()) {
+      setAuthState('authenticated');
+      setViewMode(getUserRole() ?? 'admin');
+    }
+  }, []);
+
+  if (authState === 'login') {
+    return (
+      <LoginView
+        onLogin={(role) => {
+          setViewMode(role);
+          setAuthState('authenticated');
+        }}
+        onNavigateRegister={() => setAuthState('register')}
+      />
+    );
+  }
+
+  if (authState === 'register') {
+    return (
+      <RegisterView
+        onRegister={() => setAuthState('login')}
+        onNavigateLogin={() => setAuthState('login')}
+      />
+    );
+  }
 
   return (
     <div className="size-full bg-background">
@@ -35,37 +68,16 @@ export default function App() {
       )}
 
       <div className="fixed bottom-6 right-6 z-50">
-        <div className="bg-card border border-border rounded-lg shadow-lg p-3">
-          <p className="text-xs text-muted-foreground mb-2 px-2">Switch View:</p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('admin')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                viewMode === 'admin' ? 'bg-primary text-white' : 'bg-muted text-foreground hover:bg-muted/80'
-              }`}
-            >
-              Admin
-            </button>
-            <button
-              onClick={() => setViewMode('officer')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
-                viewMode === 'officer' ? 'bg-primary text-white' : 'bg-muted text-foreground hover:bg-muted/80'
-              }`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              Officer
-            </button>
-            <button
-              onClick={() => setViewMode('citizen')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
-                viewMode === 'citizen' ? 'bg-primary text-white' : 'bg-muted text-foreground hover:bg-muted/80'
-              }`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              Citizen
-            </button>
-          </div>
-        </div>
+        <button
+          onClick={() => {
+            clearToken();
+            setActiveView('dashboard');
+            setAuthState('login');
+          }}
+          className="px-4 py-2 rounded-lg shadow-lg text-sm font-medium transition-colors bg-red-500 text-white hover:bg-red-600"
+        >
+          Logout
+        </button>
       </div>
     </div>
   );

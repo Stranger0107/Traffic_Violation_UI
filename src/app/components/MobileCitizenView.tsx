@@ -1,63 +1,52 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Car, AlertCircle, CheckCircle, Clock, MessageSquare, FileText } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
-
-interface Challan {
-  id: string;
-  plateNumber: string;
-  violation: string;
-  fine: number;
-  timestamp: string;
-  location: string;
-  status: 'issued' | 'contested' | 'paid';
-  evidenceUrl?: string;
-}
-
-interface GrievanceStatus {
-  challanId: string;
-  status: 'open' | 'approved' | 'rejected';
-  submittedAt: string;
-  adminRemarks?: string;
-}
-
-const mockChallans: Challan[] = [
-  {
-    id: 'CH-2024-001',
-    plateNumber: 'DL-3C-AB-1234',
-    violation: 'Overspeeding (85 km/h in 60 zone)',
-    fine: 2000,
-    timestamp: '2026-04-26 14:23',
-    location: 'MG Road, Zone 3',
-    status: 'issued',
-    evidenceUrl: '/evidence/ch-2024-001.jpg',
-  },
-  {
-    id: 'CH-2024-002',
-    plateNumber: 'DL-3C-AB-1234',
-    violation: 'Red Light Violation',
-    fine: 1000,
-    timestamp: '2026-04-20 10:15',
-    location: 'Connaught Place',
-    status: 'paid',
-  },
-];
-
-const mockGrievanceStatus: GrievanceStatus = {
-  challanId: 'CH-2024-001',
-  status: 'open',
-  submittedAt: '2026-04-26 15:00',
-};
+import { getMyChallans, getMyGrievances, submitGrievance, type GrievanceRecord, type ViolationRecord } from '../api';
 
 export function MobileCitizenView() {
   const [activeTab, setActiveTab] = useState<'challans' | 'grievance'>('challans');
-  const [selectedChallan, setSelectedChallan] = useState<Challan | null>(null);
+  const [selectedChallan, setSelectedChallan] = useState<ViolationRecord | null>(null);
   const [showGrievanceForm, setShowGrievanceForm] = useState(false);
   const [grievanceReason, setGrievanceReason] = useState('');
+  const [challans, setChallans] = useState<ViolationRecord[]>([]);
+  const [grievances, setGrievances] = useState<GrievanceRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const pendingChallans = mockChallans.filter((c) => c.status !== 'paid');
+  useEffect(() => {
+    let active = true;
 
-  const handleSubmitGrievance = () => {
-    alert('Grievance submitted successfully');
+    async function loadData() {
+      setIsLoading(true);
+      try {
+        const [challanData, grievanceData] = await Promise.all([getMyChallans(), getMyGrievances()]);
+        if (active) {
+          setChallans(challanData);
+          setGrievances(grievanceData);
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadData();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const pendingChallans = challans.filter((c) => c.status !== 'paid');
+
+  const handleSubmitGrievance = async () => {
+    if (!selectedChallan) {
+      return;
+    }
+
+    await submitGrievance(Number(selectedChallan.id), grievanceReason);
+    const updatedGrievances = await getMyGrievances();
+    setGrievances(updatedGrievances);
     setShowGrievanceForm(false);
     setGrievanceReason('');
     setSelectedChallan(null);
@@ -100,16 +89,16 @@ export function MobileCitizenView() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Location</p>
-                <p className="text-sm text-foreground">{selectedChallan.location}</p>
+                <p className="text-sm text-foreground">Recorded by backend DB</p>
               </div>
             </div>
           </div>
 
-          {selectedChallan.evidenceUrl && (
+          {selectedChallan.timestamp && (
             <div className="bg-card border border-border rounded-lg p-4">
               <h3 className="text-sm font-medium text-foreground mb-3">Evidence</h3>
               <div className="bg-muted rounded-lg h-48 flex items-center justify-center">
-                <p className="text-sm text-muted-foreground">Violation snapshot</p>
+                <p className="text-sm text-muted-foreground">Timestamp: {selectedChallan.timestamp}</p>
               </div>
             </div>
           )}
@@ -199,7 +188,7 @@ export function MobileCitizenView() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          My Challans ({mockChallans.length})
+          My Challans ({challans.length})
         </button>
         <button
           onClick={() => setActiveTab('grievance')}
@@ -215,8 +204,10 @@ export function MobileCitizenView() {
 
       {activeTab === 'challans' ? (
         <div className="p-4 space-y-4">
-          {mockChallans.length > 0 ? (
-            mockChallans.map((challan) => (
+          {isLoading ? (
+            <div className="bg-card border border-border rounded-lg p-6 text-center text-sm text-muted-foreground">Loading challans...</div>
+          ) : challans.length > 0 ? (
+            challans.map((challan) => (
               <button
                 key={challan.id}
                 onClick={() => setSelectedChallan(challan)}
@@ -245,69 +236,36 @@ export function MobileCitizenView() {
         </div>
       ) : (
         <div className="p-6">
-          {mockGrievanceStatus ? (
+          {grievances.length > 0 ? (
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               <div className="p-4 bg-muted border-b border-border">
                 <h3 className="font-semibold text-foreground">Active Grievance</h3>
               </div>
-              <div className="p-6 space-y-6">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Challan ID</p>
-                  <p className="text-sm font-medium text-foreground">{mockGrievanceStatus.challanId}</p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground mb-3">Status Timeline</p>
-                  <div className="space-y-4">
-                    <div className="flex gap-3">
-                      <div className="flex flex-col items-center">
-                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                          <CheckCircle className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="w-0.5 h-12 bg-green-500" />
-                      </div>
-                      <div className="flex-1 pt-1">
-                        <p className="text-sm font-medium text-foreground">Submitted</p>
-                        <p className="text-xs text-muted-foreground">{mockGrievanceStatus.submittedAt}</p>
-                      </div>
+              <div className="divide-y divide-border">
+                {grievances.map((grievance) => (
+                  <div key={grievance.id} className="p-6 space-y-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Challan ID</p>
+                      <p className="text-sm font-medium text-foreground">{grievance.violationId}</p>
                     </div>
 
-                    <div className="flex gap-3">
-                      <div className="flex flex-col items-center">
-                        <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
-                          <Clock className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="w-0.5 h-12 bg-border" />
-                      </div>
-                      <div className="flex-1 pt-1">
-                        <p className="text-sm font-medium text-foreground">Under Review</p>
-                        <p className="text-xs text-muted-foreground">Pending admin decision</p>
-                      </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Status</p>
+                      <StatusBadge status={grievance.status === 'open' ? 'contested' : grievance.status === 'approved' ? 'invalidated' : 'issued'} size="sm" />
                     </div>
 
-                    <div className="flex gap-3">
-                      <div className="flex flex-col items-center">
-                        <div className="w-8 h-8 bg-muted border border-border rounded-full flex items-center justify-center">
-                          <FileText className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                      </div>
-                      <div className="flex-1 pt-1">
-                        <p className="text-sm text-muted-foreground">Final Decision</p>
-                        <p className="text-xs text-muted-foreground">Awaiting review</p>
-                      </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Reason</p>
+                      <p className="text-sm text-foreground">{grievance.reason}</p>
                     </div>
+
+                    {grievance.adminRemark && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                        {grievance.adminRemark}
+                      </div>
+                    )}
                   </div>
-                </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex gap-3">
-                    <MessageSquare className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-blue-800">
-                      <p className="font-medium">Your grievance is being reviewed</p>
-                      <p className="mt-1">You will be notified once the admin makes a decision. This typically takes 2-3 business days.</p>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           ) : (
