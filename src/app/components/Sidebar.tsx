@@ -1,8 +1,10 @@
 import { LayoutDashboard, AlertCircle, FileText, Settings, Shield } from 'lucide-react';
 
+export type NavView = 'dashboard' | 'violations' | 'grievances' | 'settings';
+
 interface SidebarProps {
-  activeView: string;
-  onNavigate: (view: string) => void;
+  activeView: NavView;
+  onNavigate: (view: NavView) => void;
 }
 
 export function Sidebar({ activeView, onNavigate }: SidebarProps) {

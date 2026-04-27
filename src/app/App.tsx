@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar, NavView } from './components/Sidebar';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ViolationsTable } from './components/ViolationsTable';
 import { GrievancesView } from './components/GrievancesView';
@@ -13,7 +13,7 @@ export default function App() {
   const [authState, setAuthState] = useState<'login' | 'register' | 'authenticated'>(() =>
     getToken() ? 'authenticated' : 'login'
   );
-  const [activeView, setActiveView] = useState<'dashboard' | 'violations' | 'grievances' | 'settings'>('dashboard');
+  const [activeView, setActiveView] = useState<NavView>('dashboard');
   const [viewMode, setViewMode] = useState<UserRole>(() => getUserRole() ?? 'admin');
 
   useEffect(() => {
