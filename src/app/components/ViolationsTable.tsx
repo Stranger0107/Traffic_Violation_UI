@@ -96,6 +96,9 @@ export function ViolationsTable() {
                     Timestamp
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Evidence
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
@@ -125,6 +128,15 @@ export function ViolationsTable() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                         {violation.timestamp}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {violation.evidencePath ? (
+                          <div className="w-12 h-8 rounded border border-border overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.open(violation.evidencePath, '_blank')}>
+                            <img src={violation.evidencePath} alt="Evidence" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">N/A</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <StatusBadge status={violation.status} size="sm" />

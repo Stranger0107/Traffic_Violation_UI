@@ -158,11 +158,20 @@ export function MobileOfficerView() {
         <div className="p-4 space-y-4">
           {pendingChallans.map((challan) => (
             <div key={challan.id} className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
-              <div className="bg-muted h-40 flex items-center justify-center border-b border-border">
-                <div className="text-center text-muted-foreground">
-                  <Camera className="w-12 h-12 mx-auto mb-2" />
-                  <p className="text-sm">Pending review from backend DB</p>
-                </div>
+              <div className="bg-muted h-48 flex items-center justify-center border-b border-border overflow-hidden relative group cursor-pointer" onClick={() => challan.evidencePath && window.open(challan.evidencePath, '_blank')}>
+                {challan.evidencePath ? (
+                  <>
+                    <img src={challan.evidencePath} alt="Violation Evidence" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <span className="text-white text-sm font-medium border border-white/50 px-4 py-2 rounded bg-black/50 backdrop-blur-sm">Click to Enlarge</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center text-muted-foreground">
+                    <Camera className="w-12 h-12 mx-auto mb-2" />
+                    <p className="text-sm">No evidence captured</p>
+                  </div>
+                )}
               </div>
 
               <div className="p-4 space-y-3">

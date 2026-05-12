@@ -19,6 +19,7 @@ export interface ViolationRecord {
   timestamp: string;
   status: ViolationStatus;
   ownerName: string;
+  evidencePath?: string;
 }
 
 export interface GrievanceRecord {
@@ -113,6 +114,7 @@ function normalizeViolation(raw: any): ViolationRecord {
     timestamp: raw.timestamp ?? '',
     status: raw.status,
     ownerName: raw.owner_name ?? raw.ownerName ?? 'Unknown',
+    evidencePath: raw.evidence_path ? `${API_BASE}${raw.evidence_path}` : undefined,
   };
 }
 

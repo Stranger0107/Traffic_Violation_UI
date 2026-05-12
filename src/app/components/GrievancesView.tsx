@@ -137,11 +137,20 @@ export function GrievancesView() {
 
                   <div>
                     <h3 className="text-sm font-medium text-foreground mb-2">Evidence</h3>
-                    <div className="bg-muted rounded-lg h-64 flex items-center justify-center border border-border">
-                      <div className="text-center text-muted-foreground">
-                        <p className="text-sm">High-res violation snapshot</p>
-                        <p className="text-xs mt-1">{selectedGrievance.challan?.timestamp}</p>
-                      </div>
+                    <div className="bg-muted rounded-lg h-64 flex items-center justify-center border border-border overflow-hidden relative group">
+                      {selectedGrievance.challan?.evidencePath ? (
+                        <>
+                          <img src={selectedGrievance.challan.evidencePath} alt="Violation Evidence" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer" onClick={() => window.open(selectedGrievance.challan!.evidencePath, '_blank')}>
+                            <span className="text-white text-sm font-medium border border-white/50 px-4 py-2 rounded bg-black/50 backdrop-blur-sm">Click to Enlarge</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center text-muted-foreground">
+                          <p className="text-sm">High-res violation snapshot</p>
+                          <p className="text-xs mt-1">{selectedGrievance.challan?.timestamp}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -94,11 +94,20 @@ export function MobileCitizenView() {
             </div>
           </div>
 
-          {selectedChallan.timestamp && (
+          {(selectedChallan.timestamp || selectedChallan.evidencePath) && (
             <div className="bg-card border border-border rounded-lg p-4">
               <h3 className="text-sm font-medium text-foreground mb-3">Evidence</h3>
-              <div className="bg-muted rounded-lg h-48 flex items-center justify-center border border-border overflow-hidden">
-                <p className="text-sm text-muted-foreground">Timestamp: {selectedChallan.timestamp}</p>
+              <div className="bg-muted rounded-lg h-48 flex items-center justify-center border border-border overflow-hidden relative group">
+                {selectedChallan.evidencePath ? (
+                  <img src={selectedChallan.evidencePath} alt="Violation Evidence" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Timestamp: {selectedChallan.timestamp}</p>
+                )}
+                {selectedChallan.evidencePath && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer" onClick={() => window.open(selectedChallan.evidencePath, '_blank')}>
+                    <span className="text-white text-sm font-medium border border-white/50 px-4 py-2 rounded bg-black/50 backdrop-blur-sm">Click to View Full</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
