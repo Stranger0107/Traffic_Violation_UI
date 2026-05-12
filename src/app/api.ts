@@ -223,3 +223,30 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     processingRate: violations.length === 0 ? 0 : Math.round((issuedViolations.length / violations.length) * 1000) / 10,
   };
 }
+
+export async function getOfficers() {
+  return request<any[]>('/admin/officers');
+}
+
+export async function createOfficer(username: string, password: string) {
+  return request<any>('/admin/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, role: 'officer' }),
+  });
+}
+
+export async function deleteOfficer(id: number) {
+  return request<any>(`/admin/officers/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function changeOfficerPassword(oldPassword: string, newPassword: string) {
+  return request<any>('/officer/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  });
+}
+

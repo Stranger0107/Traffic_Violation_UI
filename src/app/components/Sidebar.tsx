@@ -1,10 +1,10 @@
 import { LayoutDashboard, AlertCircle, FileText, Settings, Shield } from 'lucide-react';
 
-export type NavView = 'dashboard' | 'violations' | 'grievances' | 'settings';
+export type NavView = 'dashboard' | 'violations' | 'grievances' | 'officers' | 'settings';
 
 interface SidebarProps {
-  activeView: NavView;
-  onNavigate: (view: NavView) => void;
+  activeView: string;
+  onNavigate: (view: string) => void;
 }
 
 export function Sidebar({ activeView, onNavigate }: SidebarProps) {
@@ -12,6 +12,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'violations', label: 'All Violations', icon: FileText },
     { id: 'grievances', label: 'Grievances', icon: AlertCircle },
+    { id: 'officers', label: 'Officers', icon: Shield },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

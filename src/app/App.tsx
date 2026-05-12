@@ -3,6 +3,7 @@ import { Sidebar, NavView } from './components/Sidebar';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ViolationsTable } from './components/ViolationsTable';
 import { GrievancesView } from './components/GrievancesView';
+import { OfficersView } from './components/OfficersView';
 import { MobileOfficerView } from './components/MobileOfficerView';
 import { MobileCitizenView } from './components/MobileCitizenView';
 import { LoginView } from './components/LoginView';
@@ -52,6 +53,7 @@ export default function App() {
           {activeView === 'dashboard' && <AdminDashboard />}
           {activeView === 'violations' && <ViolationsTable />}
           {activeView === 'grievances' && <GrievancesView />}
+          {activeView === 'officers' && <OfficersView />}
           {activeView === 'settings' && (
             <div className="flex-1 overflow-auto bg-background p-8">
               <h1 className="text-3xl font-semibold text-foreground mb-6">Settings</h1>

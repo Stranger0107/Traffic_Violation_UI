@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Upload, Check, X, Camera, Clock } from 'lucide-react';
-import { getPendingChallans, reviewChallan, uploadTrafficVideo, type ViolationRecord } from '../api';
+import { Upload, Check, X, Camera, Clock, KeyRound, AlertCircle } from 'lucide-react';
+import { getPendingChallans, reviewChallan, uploadTrafficVideo, changeOfficerPassword, type ViolationRecord } from '../api';
 
 export function MobileOfficerView() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'upload' | 'pending'>('pending');
+  const [activeTab, setActiveTab] = useState<'upload' | 'pending' | 'settings'>('pending');
   const [pendingChallans, setPendingChallans] = useState<ViolationRecord[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
 
   useEffect(() => {
     let active = true;
@@ -54,6 +58,19 @@ export function MobileOfficerView() {
     setPendingChallans(await getPendingChallans());
   };
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordMsg({ type: '', text: '' });
+    try {
+      await changeOfficerPassword(oldPassword, newPassword);
+      setPasswordMsg({ type: 'success', text: 'Password changed successfully!' });
+      setOldPassword('');
+      setNewPassword('');
+    } catch (err: any) {
+      setPasswordMsg({ type: 'error', text: err.message || 'Failed to change password' });
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto bg-background min-h-screen">
       <div className="bg-primary text-white p-6">
@@ -74,13 +91,23 @@ export function MobileOfficerView() {
         </button>
         <button
           onClick={() => setActiveTab('upload')}
-          className={`flex-1 py-3 px-4 font-medium text-sm transition-colors ${
+          className={`flex-1 py-3 px-2 font-medium text-sm transition-colors ${
             activeTab === 'upload'
               ? 'text-primary border-b-2 border-primary bg-blue-50'
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Upload Footage
+          Upload
+        </button>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`flex-1 py-3 px-2 font-medium text-sm transition-colors ${
+            activeTab === 'settings'
+              ? 'text-primary border-b-2 border-primary bg-blue-50'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Settings
         </button>
       </div>
 
@@ -127,7 +154,7 @@ export function MobileOfficerView() {
             </div>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'pending' ? (
         <div className="p-4 space-y-4">
           {pendingChallans.map((challan) => (
             <div key={challan.id} className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
@@ -182,6 +209,56 @@ export function MobileOfficerView() {
               <p className="text-sm text-muted-foreground">No pending challans to review</p>
             </div>
           )}
+        </div>
+      ) : (
+        <div className="p-6">
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
+              <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-500">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Change Password</h2>
+                <p className="text-sm text-muted-foreground">Update your account security</p>
+              </div>
+            </div>
+
+            {passwordMsg.text && (
+              <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${passwordMsg.type === 'error' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-green-500/10 text-green-600 border border-green-500/20'}`}>
+                {passwordMsg.type === 'error' ? <AlertCircle className="w-5 h-5 flex-shrink-0" /> : <Check className="w-5 h-5 flex-shrink-0" />}
+                <p className="text-sm font-medium">{passwordMsg.text}</p>
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-primary text-white rounded-lg hover:bg-blue-600 transition-colors font-medium mt-2"
+              >
+                Update Password
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>
