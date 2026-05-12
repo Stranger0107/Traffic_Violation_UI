@@ -48,7 +48,7 @@ export function RoadSafetyNews() {
     try {
       // For demonstration, we attempt to use GNews API. 
       // If you have a key, add it to your .env as VITE_GNEWS_API_KEY
-      const apiKey = import.meta.env.VITE_GNEWS_API_KEY;
+      const apiKey = (import.meta as any).env?.VITE_GNEWS_API_KEY;
       
       if (!apiKey) {
         console.warn('No GNews API key found, using fallback data.');
